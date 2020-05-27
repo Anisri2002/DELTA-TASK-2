@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html> 
+ <head>
+     <title>Second Page</title>
+     <style>
+         body {margin:0px;}
+         #score{
+             display:inline-block;
+             position: absolute;;
+             top: 100px;
+             left:300px;
+             
+         }
+
+         #scoreItem{
+            display:inline-block;
+             position: absolute;;
+             top:130px;
+             left:350px;
+             font-size:25px;
+         }
+
+         #Hscore{
+            display:inline-block;            
+            position:absolute;
+             top: 250px;
+             left:300px;
+         }
+
+         #HscoreItem{
+            display:inline-block;
+             position: absolute;;
+             top:280px;
+             left:350px;
+             font-size:25px;
+         }
+         #start{
+             display:inline-block;
+             position: absolute;;
+             top:400px;
+             left: 350px;
+         }
+         #pause{
+             display:inline-block;
+             position: absolute;;
+             top:440px;
+             left: 350px;
+         }
+         #resume{
+             display:inline-block;
+             position: absolute;;
+             top:480px;
+             left: 350px;
+         }
+
+         
+     </style>
+ </head>
+  <body>
+      <p>Click START. Click inside the black box to make the ball bounce. Dont let the ball touch floor or mesh with different colored obstacle. Your score increases as an obstacle leaves the screen . The ball color changes as you escape out of every obstacle.</p>
+      <span id="score"> SCORE : </span>
+      <span id="scoreItem"></span>
+
+      <span id="Hscore">HIGH SCORE : </span>
+      <span id="HscoreItem"></span>
+
+      <canvas id="canvas" style="position:absolute; top:100px; left:450px; background-color:black; "> </canvas>
+      <button id="start"  onclick = "gameArea.start(); ball.startGravi();">START</button>
+      <button id="pause"> PAUSE </button>
+      <button id="resume"> RESUME </button>
+     
+  </body>
+  <script>
+     
+     var cnvs = document.getElementById("canvas");
+     var ctx = cnvs.getContext("2d");
+     var pauseBtn = document.getElementById("pause");
+     var resumeBtn = document.getElementById("resume");
+     pauseBtn.addEventListener("click",()=>{gameArea.pause();} );
+     resumeBtn.addEventListener("click",()=>{gameArea.resume();} );
+     resumeBtn.style.visibility="hidden";
+     cnvs.width=300;
+     cnvs.height=400;
+     cnvs.addEventListener("click",moveUp);
+     
+     var ball; 
+     var obstacle = [];
+
+     var score = -1;
+        
+     function upScore(){       
+      
+       score+=1;
+       dispScore();
+        }
+     
+     function dispScore(){
+         var scr = document.getElementById("scoreItem");
+         scr.innerHTML = score;
+         setHighScore();
+     }
+
+     function setHighScore(){
+         if(!localStorage.hs)
+         {
+             localStorage.setItem("hs",score);
+         }
+         var currHS = parseInt(localStorage.getItem("hs"));
+         if(score>currHS)
+         {
+             localStorage.setItem("hs",score);
+         }
+         var d = document.getElementById("HscoreItem");
+         var hs = localStorage.getItem("hs");
+         d.innerHTML= hs ;
+     }
+
+     var gameArea = {
+         clear: function(){             
+              ctx.clearRect(0,0,300,400);
+             },
+         start: function(){
+             document.getElementById("start").style.visibility = "hidden";
+             ball = new MakeBall(300,"rgba(255,255,0)");
+             ball.draw();
+             populateObstacle();                   
+             this.updGameInterval = setInterval(updateGameArea,20);
+             this.gameOn = 1;
+             this.colorChkInterval = setInterval(colorCheck,100);
+             setHighScore();
+            },
+         stop : function(){             
+             clearInterval(this.updGameInterval);
+             clearInterval(this.colorChkInterval);
+            pauseBtn.style.visibility="hidden";
+            resumeBtn.style.visibility="hidden";
+             this.gameOn = 0;
+             console.log("stopped");
+             setHighScore();
+            },
+         pause: function(){
+            ctx.save();
+            ball.stopGravi();
+            clearInterval(this.updGameInterval);
+            clearInterval(this.colorChkInterval);
+            cnvs.removeEventListener("click",moveUp);
+            resumeBtn.style.visibility="visible";
+            },
+         resume : function(){
+             ctx.restore();
+             this.gameOn = 1;
+             ball.startGravi();
+             cnvs.addEventListener("click",moveUp);
+             this.updGameInterval = setInterval(updateGameArea,20);
+             this.colorChkInterval = setInterval(colorCheck,80);
+         }           
+     };
+
+     function updateGameArea()
+     {       
+        gameArea.clear();
+        if(obstacle[0].obsY - obstacle[0].obsR > ball.y && obstacle[0].obsY > 400 )  //deletes old obs aft it leaves screen
+        {
+            console.log("deleted obs",obstacle[0]);
+                delete obstacle[0];
+                obstacle=[];   
+                ball.changeBallColor();        
+                populateObstacle();  
+        }           
+
+       
+            obstacle[0].draw();
+            obstacle[0].angle += obstacle[0].angUpdation * (Math.PI/180); 
+                              
+        
+        ball.rockBottom();
+        ball.draw();         
+     }
+         
+     function colorCheck()                           //checks color every time gameArea updates.
+     {
+        var ballColor = ctx.getImageData( 150 , ball.y , 1 , 1);
+        var ballTop = ctx.getImageData(ball.x,ball.y-6,1,1);
+        var ballTop2 = ctx.getImageData(ball.x,ball.y-7,1,1);
+        var ballLeft = ctx.getImageData(ball.x-6,ball.y,1,1);
+        var ballRight = ctx.getImageData(ball.x+6,ball.y,1,1);
+
+        ballColor = ballColor.data;
+        ballTop = ballTop.data;
+        ballTop2 = ballTop2.data;
+        ballLeft = ballLeft.data;
+        ballRight = ballRight.data;
+        
+
+       
+        ballColor = "rgba(" + ballColor[0] + "," + ballColor[1] + "," + ballColor[2] + ")";
+        ballTop = "rgba(" + ballTop[0] + "," + ballTop[1] + "," + ballTop[2] + ")";     
+        ballTop2 = "rgba(" + ballTop2[0] + "," + ballTop2[1] + "," + ballTop2[2] + ")";
+        ballLeft = "rgba(" + ballLeft[0] + "," + ballLeft[1] + "," + ballLeft[2] + ")";
+        ballRight = "rgba(" + ballRight[0] + "," + ballRight[1] + "," + ballRight[2] + ")";    
+              
+        if(!( ballTop == ballColor || ballTop == "rgba(0,0,0)" || ballTop2 == ballColor || ballTop2 == "rgba(0,0,0)"))
+        {
+            gameArea.stop();console.log("Top",ballTop,ballTop2,ballColor);
+        } 
+        else if( ballLeft != ballColor && ballLeft != "rgba(0,0,0)" )
+        {
+            gameArea.stop();console.log("Left",ballLeft,ballColor);
+        }
+        else if( ballRight != ballColor && ballRight != "rgba(0,0,0)" )
+        {
+            gameArea.stop();console.log("Right",ballRight,ballColor);
+        }        
+
+
+     }
+
+     var MakeBall = function(y,color)               //Ball object constructor.
+     {
+         this.x = 150;
+         this.y = y;
+         this.velY = 4;        
+         this.gravitY = 4.5;
+         this.color = color;
+         this.draw = function(){
+            ctx.beginPath();
+            ctx.arc(this.x,this.y,5,0,2*Math.PI);
+            ctx.closePath();
+            ctx.fillStyle=this.color;
+            ctx.fill();
+         };   
+         this.changeBallColor = function(){
+            let newCol = randomColor(2);  //randomColor(1) just returns the ball color. so we give 2 and take the first one.
+            newCol = newCol[0];
+            this.color = newCol;
+         }; 
+         this.rockBottom= ()=>{ 
+             if(ball.y>=(395)){ball.y=395;gameArea.stop();dispScore();}
+             if(ball.y<=5){ball.y=5;}
+             
+         };
+         this.startGravi = function(){
+             this.gravi = setInterval(createGravity,40);
+         };
+         this.stopGravi = function(){
+             clearInterval(this.gravi);
+         };
+                      
+     };
+         
+     function moveUp(){                                 //puts OnePxMoveUP into frame and checks if obs is to be moved down.
+       if(ball.y<350)
+        {requestAnimationFrame(moveObs);}          
+       requestAnimationFrame(moveUpOnePx);        
+     }
+
+     var c1 = 0;                                        //counter var for moveObs func
+     function moveObs(){                                 // moves obstacle down by 50 px if ball.y < 350 per click.
+        c1+=1;
+        for(i=0;i<obstacle.length;i++)
+        {
+            obstacle[i].obsY+=1;           
+        }
+        
+        let req = requestAnimationFrame(moveObs);
+        if(c1==40){cancelAnimationFrame(req);c1=0;}
+     }
+     
+     var counter = 0;    
+     function moveUpOnePx(){                             //moves ball up by ball.velY value.(60FPS)    
+         counter+=1;
+         ball.y-=ball.velY; 
+         var req = requestAnimationFrame(moveUpOnePx);   
+         if(counter>=15)
+         { cancelAnimationFrame(req);counter=0;}                  
+     }
+
+     function MakeObstacle(x,y,r,parts,color){                    //obstacle object constructor
+         this.obsX = x;         
+         this.obsY = y;
+         this.iniY = y;
+         this.obsR = r;
+         this.color = color;                                 // the one another random colour.
+         this.angle = 0;
+         this.angUpdation = oneOrNegOne()*((0.5 + Math.random())*2.25);
+         this.parts = parts;
+         this.incAng = 2*Math.PI/this.parts ; 
+         this.draw = function(){
+             ctx.save();
+             ctx.lineWidth = 20;
+             ctx.translate(this.obsX,this.obsY);
+             ctx.rotate(this.angle);
+            
+             this.sa = 0;
+             this.ea = this.sa + this.incAng;
+            for(i=0;i<this.parts;i++){
+             ctx.strokeStyle = this.color[i];
+             ctx.beginPath();
+             ctx.arc(0,0,this.obsR,this.sa,this.ea);              
+             ctx.stroke();
+             this.sa = this.ea;
+             this.ea = this.ea + this.incAng;
+            }
+            
+             ctx.restore();
+         };
+     }
+
+     function oneOrNegOne(){                             //outputs 1 or -1 randomly
+         if(Math.random()<0.5){
+             return 1 ;
+         }
+         else{
+             return -1;
+         }
+     }
+
+     var iniY = 0;                                       // position of first obstacle                                     
+     function populateObstacle(){                   
+            var tempObs;           
+            for(i=0;i<1;i++){               //creates 1 obstacles.
+            var n = random(2,5);
+            var col = randomColor(n);
+            tempObs = new MakeObstacle(150,iniY,90,n,col);
+            obstacle.push(tempObs);                
+            }            
+            iniY = -75;
+            upScore();
+         }
+     
+     function random(a,b){                                  // a- min value      b - max val (excluded)  
+         let y = a + Math.floor((Math.random())*(b-a));
+         return y;
+     }
+
+     function randomColor(n){
+         let b = [];
+         for(i=0;i<n-1;i++)
+         {
+            let a = "rgba(" + random(0,255) + "," + random(0,255) + "," + random(0,255) + ")" ;
+            b.push(a);
+         }
+         let x = ball.color;
+         b.push(x);
+         return b;        
+         }
+     
+     function createGravity()
+     {
+        ball.y+=ball.gravitY;
+     }
+     
+  </script>
+</html>
